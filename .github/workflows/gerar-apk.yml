@@ -12,35 +12,32 @@ jobs:
   apk:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
 
       - name: Abrir projeto
         run: |
           test -f projeto.zip || { echo "Envie o arquivo projeto.zip para o repositorio"; exit 1; }
           mkdir build-app && unzip -q projeto.zip -d build-app
+          echo "sdk.dir=$ANDROID_HOME" > build-app/local.properties
 
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - uses: android-actions/setup-android@v3
-
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.7'
+      - name: Preparar Android e Gradle
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-34" "build-tools;34.0.0" > /dev/null
+          wget -q https://services.gradle.org/distributions/gradle-8.7-bin.zip
+          unzip -q gradle-8.7-bin.zip -d "$HOME"
 
       - name: Compilar APK assinado
         working-directory: build-app
-        run: gradle assembleRelease --no-daemon
+        run: $HOME/gradle-8.7/bin/gradle assembleRelease --no-daemon
 
       - name: Renomear
         run: cp build-app/app/build/outputs/apk/release/app-release.apk checklist-frota-v1.0.${{ github.run_number }}.apk
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: checklist-frota-apk
-          path: checklist-frota-*.apk
 
       - name: Publicar versao
         uses: softprops/action-gh-release@v2
